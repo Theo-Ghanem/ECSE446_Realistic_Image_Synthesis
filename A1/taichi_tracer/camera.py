@@ -130,6 +130,9 @@ class Camera:
         pixel_x = ti.cast(pixel_x + 0.5, ti.f32)
         pixel_y = ti.cast(pixel_y + 0.5, ti.f32)
 
+        # Flip the x-axis
+        pixel_x = self.width - pixel_x
+
         # To convert pixel coordinates to NDC coordinates, we first bring it from [0, width]
         # to [0, 1] and then to [-1, 1] as described in tutorial 1
         ndc_x = (2.0 * pixel_x - self.width) / self.width
