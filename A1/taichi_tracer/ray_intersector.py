@@ -83,9 +83,11 @@ class RayIntersector(ABC):
                     hit_data.is_hit = True
                     hit_data.is_backfacing = det < 0
                     hit_data.triangle_id = triangle_id
-                    hit_data.distance = (ray.origin - v0).dot(tm.cross(e1, e2)) / det
+                    hit_data.distance = t
                     hit_data.barycentric_coords = tm.vec2(u, v)
-                    #the per-pixel interpolated normal, returned as a taichi.math vec3 type (hint: you will need to flip your normal if your triangle is backfacing, as well as performing the per-vertex to per-pixel interpolation and renormalization)
+                    #the per-pixel interpolated normal, returned as a taichi.math vec3 type
+                    # (hint: you will need to flip your normal if your triangle is backfacing,
+                    # as well as performing the per-vertex to per-pixel interpolation and renormalization)
                     if hit_data.is_backfacing:
                         hit_data.normal = w*normal_0 + u*normal_1 + v*normal_2
                     else:

@@ -62,7 +62,7 @@ class Camera:
 
         # Compute the camera coordinate frame
         # (orientation of the camera in the world space)
-        z_c = (self.eye[None] - self.at[None]).normalized()
+        z_c = (self.at[None] - self.eye[None]).normalized()
         x_c = self.up[None].cross(z_c).normalized() # self.up is up_w in the world space
         y_z = z_c.cross(x_c) # up vector
 
@@ -74,11 +74,12 @@ class Camera:
 
         # Compute the camera to world matrix
         self.camera_to_world[None] = tm.mat4([
-            [x_c[0], y_z[0], z_c[0], -x_c.dot(self.eye[None])],
-            [x_c[1], y_z[1], z_c[1], -y_z.dot(self.eye[None])],
-            [x_c[2], y_z[2], z_c[2], -z_c.dot(self.eye[None])],
+            [x_c[0], y_z[0], z_c[0], self.eye[None][0]],
+            [x_c[1], y_z[1], z_c[1], self.eye[None][1]],
+            [x_c[2], y_z[2], z_c[2], self.eye[None][2]],
             [0, 0, 0, 1]
         ])
+
 
 
     @ti.func
@@ -130,9 +131,6 @@ class Camera:
         pixel_x = ti.cast(pixel_x + 0.5, ti.f32)
         pixel_y = ti.cast(pixel_y + 0.5, ti.f32)
 
-        # Flip the x-axis
-        pixel_x = self.width - pixel_x
-
         # To convert pixel coordinates to NDC coordinates, we first bring it from [0, width]
         # to [0, 1] and then to [-1, 1] as described in tutorial 1
         ndc_x = (2.0 * pixel_x - self.width) / self.width
@@ -162,6 +160,6 @@ class Camera:
 
         cam_x = ndc_x * aspect_ratio * scale
         cam_y = ndc_y * scale
-        cam_z = -1.0
+        cam_z = 1.0
 
         return tm.vec4([cam_x, cam_y, cam_z, 0.0]) #homogeneous coordinates 0 for dir vector, 1 for pt vector
