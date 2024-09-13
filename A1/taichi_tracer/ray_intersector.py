@@ -60,7 +60,7 @@ class RayIntersector(ABC):
 
         det = tm.cross(ray.direction, e2).dot(e1)
 
-        if -self.EPSILON < det < self.EPSILON: #ray is parallel to the triangle
+        if -self.EPSILON < det < self.EPSILON: # if det close to 0 -> ray is parallel to the triangle
             hit_data.is_hit = False
         else: # it intersects the triangle, inside or outside?
             #compute the barycentric coordinates:
@@ -69,10 +69,11 @@ class RayIntersector(ABC):
             w = 1.0 - u - v
 
             # We then verify whether the barycentric coordinates fall within the sheared triangle frame bounds:
-            if 0 <= u <= 1 and 0 <= v <= 1 and u+v <= 1: # If all these tests pass, then the ray intersects the triangle at parametric distance
+            if 0 <= u <= 1 and 0 <= v <= 1 and u+v <= 1:
+                # If all these tests pass, then the ray intersects the triangle at parametric distance t:
                 t = (e2.dot(tm.cross((ray.origin - v0), e1)))/det
 
-                #To account for numerics, only consider intersections for 𝑡 > 𝜖
+                #To account for numerics, we only consider intersections for 𝑡 > EPSILON
                 if t < self.EPSILON: #check if the intersection is behind the ray
                     hit_data.is_hit = False
 
@@ -80,7 +81,6 @@ class RayIntersector(ABC):
 
                 else: # We compute the intersection point:
                     hit_data.is_hit = True
-                    #a flag that is true if the triangle is backfacing (hint: check the sign of the determinant),
                     hit_data.is_backfacing = det < 0
                     hit_data.triangle_id = triangle_id
                     hit_data.distance = (ray.origin - v0).dot(tm.cross(e1, e2)) / det
@@ -91,9 +91,6 @@ class RayIntersector(ABC):
                     else:
                         hit_data.normal = w*normal_0 + v*normal_1 + u*normal_2
                     hit_data.material_id = material_id
-
-
-
         return hit_data
 
 

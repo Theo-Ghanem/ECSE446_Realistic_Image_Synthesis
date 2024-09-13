@@ -66,7 +66,6 @@ class Camera:
         x_c = self.up[None].cross(z_c).normalized() # self.up is up_w in the world space
         y_z = z_c.cross(x_c) # up vector
 
-        self.fov
 
         # Section responsible for moving camera around
         self.x[None] = x_c
@@ -153,20 +152,16 @@ class Camera:
         ndc_x = ndc_coords[0]
         ndc_y = ndc_coords[1]
 
-        cam_x = ndc_x * self.x[None][0] + ndc_y * self.y[None][0] + self.z[None][0]
-        cam_y = ndc_x * self.x[None][1] + ndc_y * self.y[None][1] + self.z[None][1]
+        aspect_ratio = self.width / self.height
+
+        # Convert the FOV from degres to radians and half it
+        half_fov_radians = self.fov[None] * 0.5 * np.pi / 180
+
+        # We then calculate the tangent of the half angle to get the scale factor
+        scale = ti.tan(half_fov_radians)
+
+        cam_x = ndc_x * aspect_ratio * scale
+        cam_y = ndc_y * scale
         cam_z = -1.0
 
-        return tm.vec4([cam_x, cam_y, cam_z, 0.0])
-
-        # # Compute aspect ratio
-        # aspect_ratio = self.width / self.height
-        #
-        # # Compute scale based on vertical field of view
-        # scale = ti.tan(self.fov[None] * 0.5 * np.pi / 180)
-        #
-        # cam_x = ndc_x * aspect_ratio * scale
-        # cam_y = ndc_y * scale
-        # cam_z = -1.0
-        #
-        # return tm.vec4([cam_x, cam_y, cam_z, 0.0]) #homogeneous coordinates o for dir vector, 1 for pt vector
+        return tm.vec4([cam_x, cam_y, cam_z, 0.0]) #homogeneous coordinates 0 for dir vector, 1 for pt vector
