@@ -61,22 +61,23 @@ class Camera:
         '''
 
         # Compute the camera coordinate frame
-        z = (self.eye[None] - self.at[None]).normalized()
-        x = self.up[None].cross(z).normalized()
-        y = z.cross(x)
+        # (orientation of the camera in the world space)
+        z_c = (self.eye[None] - self.at[None]).normalized()
+        x_c = self.up[None].cross(z_c).normalized() # self.up is up_w in the world space
+        y_z = z_c.cross(x_c) # up vector
+
+        self.fov
+
+        # Section responsible for moving camera around
+        self.x[None] = x_c
+        self.y[None] = y_z
+        self.z[None] = z_c
 
         # Compute the camera to world matrix
-        # self.camera_to_world[None] = tm.mat4([
-        #     [x[0], x[1], x[2], -x.dot(self.eye[None])],
-        #     [y[0], y[1], y[2], -y.dot(self.eye[None])],
-        #     [z[0], z[1], z[2], -z.dot(self.eye[None])],
-        #     [0, 0, 0, 1]
-        # ])
-
         self.camera_to_world[None] = tm.mat4([
-            [x[0], y[0], z[0], -x.dot(self.eye[None])],
-            [x[1], y[1], z[1], -y.dot(self.eye[None])],
-            [x[2], y[2], z[2], -z.dot(self.eye[None])],
+            [x_c[0], y_z[0], z_c[0], -x_c.dot(self.eye[None])],
+            [x_c[1], y_z[1], z_c[1], -y_z.dot(self.eye[None])],
+            [x_c[2], y_z[2], z_c[2], -z_c.dot(self.eye[None])],
             [0, 0, 0, 1]
         ])
 
@@ -149,17 +150,23 @@ class Camera:
         - return tm.vec4([camera_x, camera_y, camera_z, 0.0])
         '''
         #Generate Camera coordinates
-        # ndc_x = ndc_coords[0]
-        # ndc_y = ndc_coords[1]
-        #
-        # cam_x = ndc_x * self.x[None][0] + ndc_y * self.y[None][0] + self.z[None][0]
-        # cam_y = ndc_x * self.x[None][1] + ndc_y * self.y[None][1] + self.z[None][1]
-        # cam_z = ndc_x * self.x[None][2] + ndc_y * self.y[None][2] + self.z[None][2]
-        #
-        # return tm.vec4([cam_x, cam_y, cam_z, 0.0])
-        aspect_ratio = self.width / self.height
-        scale = ti.tan(self.fov[None] * 0.5 * np.pi / 180)
-        cam_x = ndc_coords[0] * aspect_ratio * scale
-        cam_y = ndc_coords[1] * scale
+        ndc_x = ndc_coords[0]
+        ndc_y = ndc_coords[1]
+
+        cam_x = ndc_x * self.x[None][0] + ndc_y * self.y[None][0] + self.z[None][0]
+        cam_y = ndc_x * self.x[None][1] + ndc_y * self.y[None][1] + self.z[None][1]
         cam_z = -1.0
-        return tm.vec4([cam_x, cam_y, cam_z, 0.0]) #homogeneous coordinates o for dir vector, 1 for pt vector
+
+        return tm.vec4([cam_x, cam_y, cam_z, 0.0])
+
+        # # Compute aspect ratio
+        # aspect_ratio = self.width / self.height
+        #
+        # # Compute scale based on vertical field of view
+        # scale = ti.tan(self.fov[None] * 0.5 * np.pi / 180)
+        #
+        # cam_x = ndc_x * aspect_ratio * scale
+        # cam_y = ndc_y * scale
+        # cam_z = -1.0
+        #
+        # return tm.vec4([cam_x, cam_y, cam_z, 0.0]) #homogeneous coordinates o for dir vector, 1 for pt vector
