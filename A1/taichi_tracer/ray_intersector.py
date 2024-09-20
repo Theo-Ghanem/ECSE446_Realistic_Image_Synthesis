@@ -77,8 +77,6 @@ class RayIntersector(ABC):
                 if t < self.EPSILON: #check if the intersection is behind the ray
                     hit_data.is_hit = False
 
-                #check if the intersection is closer than the current closest intersection
-
                 else: # We compute the intersection point:
                     hit_data.is_hit = True
                     hit_data.is_backfacing = det < 0

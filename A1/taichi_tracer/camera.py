@@ -128,13 +128,14 @@ class Camera:
 
         '''
         # Convert pixel coordinates to float
-        pixel_x = ti.cast(pixel_x + 0.5, ti.f32)
-        pixel_y = ti.cast(pixel_y + 0.5, ti.f32)
+        # +0.5 to be in the center of the pixel
+        pixel_x_float = ti.cast(pixel_x + 0.5, ti.f32)
+        pixel_y_float = ti.cast(pixel_y + 0.5, ti.f32)
 
         # To convert pixel coordinates to NDC coordinates, we first bring it from [0, width]
         # to [0, 1] and then to [-1, 1] as described in tutorial 1
-        ndc_x = (2.0 * pixel_x - self.width) / self.width
-        ndc_y = (2.0 * pixel_y - self.height) / self.height
+        ndc_x = (2.0 * pixel_x_float - self.width) / self.width
+        ndc_y = (2.0 * pixel_y_float - self.height) / self.height
 
         return tm.vec2([ndc_x, ndc_y])
 
