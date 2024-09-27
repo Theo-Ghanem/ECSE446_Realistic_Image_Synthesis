@@ -85,9 +85,9 @@ def load_scene_data(
             env_file_path = str(resources.files(scene_data_dir) / env_file)
             environment = load_environment(env_file_path)
         case EnvironmentName.BLACK:
-            environment = Environment(np.zeros((100, 100, 3)))
+            environment = Environment(np.zeros((100, 100, 3), dtype=np.float32))
         case EnvironmentName.WHITE:
-            environment = Environment(np.ones((100, 100, 3)))
+            environment = Environment(np.ones((100, 100, 3), dtype=np.float32))
 
     return SceneData(
         geometry=geometry,

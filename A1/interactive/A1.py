@@ -1,5 +1,5 @@
 import taichi as ti
-ti.init(arch=ti.gpu)
+ti.init(arch=ti.metal)
 import taichi.math as tm
 
 from taichi_tracer.renderer import A1Renderer
