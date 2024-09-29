@@ -1,0 +1,4 @@
+taichi
+pyQt5
+matplotlib
+numpy
