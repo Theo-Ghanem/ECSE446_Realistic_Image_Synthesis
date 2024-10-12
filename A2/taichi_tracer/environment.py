@@ -39,5 +39,10 @@ class Environment:
         - return the environment map query at [x, y]
             - self.image[x, y]
         '''
+        u = 0.5 + tm.atan2(ray.direction.z, ray.direction.x) / (2 * tm.pi)
+        v = 0.5 + tm.asin(ray.direction.y) / tm.pi
 
-        pass
+        x = int(u * self.x_resolution)
+        y = int(v * self.y_resolution)
+
+        return self.image[x, y]

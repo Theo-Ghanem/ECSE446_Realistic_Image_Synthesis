@@ -4,7 +4,6 @@ import numpy as np
 
 from .ray import Ray
 
-
 @ti.data_oriented
 class Camera:
 
@@ -79,21 +78,8 @@ class Camera:
     @ti.func
     def generate_ray(self, pixel_x: int, pixel_y: int, jitter: bool = False) -> Ray:
 
-        '''
-        - generate ndc coords
-        - generate camera coods from NDC coords
-        - generate a ray
-            - ray = Ray()
-        - set the ray direction and origin
-            - ray.origin = ...
-            - ray.direction = ...
-        - Ignore jittering for now
-        - return ray
-        '''
-
         # Generate ndc coords:
         ndc_coords = self.generate_ndc_coords(pixel_x, pixel_y, jitter)
-        # print ("ndc_coords : ", ndc_coords)
 
         # generate camera coords from NDC coords:
         camera_coords = self.generate_camera_coords(ndc_coords)
@@ -109,17 +95,15 @@ class Camera:
 
     @ti.func
     def generate_ndc_coords(self, pixel_x: int, pixel_y: int, jitter: bool = False) -> tm.vec2:
-
-        '''
-        - Ignore jittering for now
-
-        return tm.vec2([ndc_x, ndc_y])
-
-        '''
         # Convert pixel coordinates to float
-        # +0.5 to be in the center of the pixel
-        pixel_x_float = ti.cast(pixel_x + 0.5, ti.f32)
-        pixel_y_float = ti.cast(pixel_y + 0.5, ti.f32)
+        pixel_x_float = ti.cast(pixel_x , ti.f32)
+        pixel_y_float = ti.cast(pixel_y , ti.f32)
+
+        if jitter: # Add jittering to the pixel coordinates
+            r1 = ti.random(ti.f32)-0.5
+            r2 = ti.random(ti.f32)-0.5
+            pixel_x_float += 0.5 + r1
+            pixel_y_float += 0.5 + r2
 
         # To convert pixel coordinates to NDC coordinates, we first bring it from [0, width]
         # to [0, 1] and then to [-1, 1] as described in tutorial 1
@@ -130,11 +114,6 @@ class Camera:
 
     @ti.func
     def generate_camera_coords(self, ndc_coords: tm.vec2) -> tm.vec4:
-
-        '''
-        - compute camera_x, camera_y, camera_z
-        - return tm.vec4([camera_x, camera_y, camera_z, 0.0])
-        '''
         # Generate Camera coordinates
         ndc_x = ndc_coords[0]
         ndc_y = ndc_coords[1]

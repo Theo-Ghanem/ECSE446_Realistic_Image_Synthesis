@@ -48,6 +48,43 @@ class RayIntersector(ABC):
         TODO: Copy your A1 solution
         '''
 
+        # 1st compute edge vectors:
+        e1 = v1 - v0
+        e2 = v2 - v0
+
+        det = tm.cross(ray.direction, e2).dot(e1)
+
+        if -self.EPSILON < det < self.EPSILON:  # if det close to 0 -> ray is parallel to the triangle
+            hit_data.is_hit = False
+        else:  # it intersects the triangle, inside or outside?
+            # compute the barycentric coordinates:
+            u = (ray.origin - v0).dot(tm.cross(ray.direction, e2)) / det
+            v = (ray.direction.dot(tm.cross((ray.origin - v0), e1))) / det
+            w = 1.0 - u - v
+
+            # We then verify whether the barycentric coordinates fall within the sheared triangle frame bounds:
+            if 0 <= u <= 1 and 0 <= v <= 1 and u + v <= 1:
+                # If all these tests pass, then the ray intersects the triangle at parametric distance t:
+                t = (e2.dot(tm.cross((ray.origin - v0), e1))) / det
+
+                # To account for numerics, we only consider intersections for 𝑡 > EPSILON
+                if t < self.EPSILON:  # check if the intersection is behind the ray
+                    hit_data.is_hit = False
+
+                else:  # We compute the intersection point:
+                    hit_data.is_hit = True
+                    hit_data.is_backfacing = det < 0
+                    hit_data.triangle_id = triangle_id
+                    hit_data.distance = t
+                    hit_data.barycentric_coords = tm.vec2(u, v)
+                    # the per-pixel interpolated normal, returned as a taichi.math vec3 type
+                    # (hint: you will need to flip your normal if your triangle is backfacing,
+                    # as well as performing the per-vertex to per-pixel interpolation and renormalization)
+                    if hit_data.is_backfacing:
+                        hit_data.normal = (w * normal_0 + v * normal_1 + u * normal_2).normalized()
+                    else:
+                        hit_data.normal = (w * normal_0 + u * normal_1 + v * normal_2).normalized()
+                    hit_data.material_id = material_id
         return hit_data
 
 

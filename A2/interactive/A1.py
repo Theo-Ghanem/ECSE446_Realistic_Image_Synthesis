@@ -41,6 +41,8 @@ def main():
             renderer.set_shade_material_ID()
         window.GUI.end()
 
+        if window.get_event() or controller.update():  #added to get progressive renders
+            renderer.reset()
 
     while window.running:
         controller.update()

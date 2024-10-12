@@ -16,7 +16,7 @@ def main():
     renderer = A2Renderer(scene_data=scene_data, width=512, height=512)
 
     renderer.set_sample_uniform()
-    #renderer.set_sample_brdf()
+    # renderer.set_sample_brdf()
     # renderer.set_sample_microfacet()
 
     spp = 100

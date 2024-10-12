@@ -30,7 +30,6 @@ def main():
         if window.get_event() or controller.update():
             renderer.reset()
 
-
     while window.running:
         control_panel(renderer.sample_mode[None])
         renderer.render()
@@ -39,4 +38,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

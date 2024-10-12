@@ -58,7 +58,7 @@ class A1Renderer:
     @ti.kernel
     def render(self):
         for x,y in ti.ndrange(self.width, self.height):
-            primary_ray = self.camera.generate_ray(x,y)
+            primary_ray = self.camera.generate_ray(x,y, jitter=True)
             color = self.shade_ray(primary_ray)
             self.canvas[x,y] = color
 

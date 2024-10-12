@@ -22,10 +22,10 @@ class A1Renderer:
         NORMAL = 5
         MATERIAL_ID = 6
 
-    def __init__( 
-        self, 
-        width: int, 
-        height: int, 
+    def __init__(
+        self,
+        width: int,
+        height: int,
         scene_data: SceneData
         ) -> None:
 
@@ -34,6 +34,7 @@ class A1Renderer:
         self.camera = Camera(width=width, height=height)
         self.canvas = ti.Vector.field(n=3, dtype=float, shape=(width, height))
         self.scene_data = scene_data
+        self.iter_counter = ti.field(dtype=float, shape=())  # Add this line
 
         self.shade_mode = ti.field(shape=(), dtype=int)
         self.set_shade_hit()
@@ -54,14 +55,17 @@ class A1Renderer:
     def set_shade_normal(self):       self.shade_mode[None] = self.ShadeMode.NORMAL
     def set_shade_material_ID(self):  self.shade_mode[None] = self.ShadeMode.MATERIAL_ID
 
-
     @ti.kernel
     def render(self):
-        for x,y in ti.ndrange(self.width, self.height):
-            primary_ray = self.camera.generate_ray(x,y)
+        for x, y in ti.ndrange(self.width, self.height):
+            primary_ray = self.camera.generate_ray(x, y, jitter=True)
             color = self.shade_ray(primary_ray)
-            self.canvas[x,y] = color
+            self.canvas[x, y] = (self.canvas[x, y] * self.iter_counter[None] + color) / (self.iter_counter[None] + 1)
+        self.iter_counter[None] += 1
 
+    def reset(self):
+        self.canvas.fill(0.)
+        self.iter_counter.fill(0.)
 
     @ti.func
     def shade_ray(self, ray: Ray) -> tm.vec3:
@@ -74,7 +78,7 @@ class A1Renderer:
         elif self.shade_mode[None] == int(self.ShadeMode.NORMAL):      color = self.shade_normal(hit_data)
         elif self.shade_mode[None] == int(self.ShadeMode.MATERIAL_ID): color = self.shade_material_id(hit_data)
         return color
-       
+
 
     @ti.func
     def shade_hit(self, hit_data: HitData) -> tm.vec3:
@@ -82,7 +86,7 @@ class A1Renderer:
         if hit_data.is_hit:
             if not hit_data.is_backfacing:
                 color = tm.vec3(1)
-            else: 
+            else:
                 color = tm.vec3([0.5,0,0])
         return color
 
@@ -148,10 +152,10 @@ class A2Renderer:
         BRDF = 2
         MICROFACET = 3
 
-    def __init__( 
-        self, 
-        width: int, 
-        height: int, 
+    def __init__(
+        self,
+        width: int,
+        height: int,
         scene_data: SceneData
         ) -> None:
 
@@ -181,9 +185,10 @@ class A2Renderer:
             - call generate_ray with jitter = True
             - progressively accumulate the pixel values in each canvas [x, y] position
             '''
-            primary_ray = self.camera.generate_ray(x,y)
+            primary_ray = self.camera.generate_ray(x, y, jitter=True)
             color = self.shade_ray(primary_ray)
-            self.canvas[x,y] = color
+            self.canvas[x, y] = (self.canvas[x, y] * self.iter_counter[None] + color) / (self.iter_counter[None] + 1)
+        self.iter_counter[None] += 1
 
     def reset(self):
         self.canvas.fill(0.)
@@ -193,23 +198,45 @@ class A2Renderer:
     @ti.func
     def shade_ray(self, ray: Ray) -> tm.vec3:
         color = tm.vec3(0.)
+        hit_data = self.scene_data.ray_intersector.query_ray(ray)
+        if hit_data.is_hit:
+            x = ray.origin + ray.direction * hit_data.distance
+            normal = hit_data.normal
+            material = self.scene_data.material_library.materials[hit_data.material_id]
+            omega_o = -ray.direction
+            omega_j = tm.vec3(0)
+            pdf = 0.0
 
-        '''
-        You can change the structure of the shade ray function however you want as there will be computations that are the same for all 3 methods
-        You can have your branching logic anywhere in the code
-        '''
+            if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
+                omega_j = UniformSampler.sample_direction()
+                pdf = UniformSampler.evaluate_probability()
 
-        # TODO: Implement Uniform Sampling
-        if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
-            pass 
-        
-        # TODO: Implement BRDF Sampling
-        elif self.sample_mode[None] == int(self.SampleMode.BRDF):
-            pass 
-                           
-        # TODO: 546 Deliverable Only
-        # Implement Microfacet BRDF Sampling
-        elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
-            pass       
+            elif self.sample_mode[None] == int(self.SampleMode.BRDF):
+                omega_j = BRDF.sample_direction(material, omega_o, normal)
+                pdf = BRDF.evaluate_probability(material, omega_o, omega_j, normal)
+
+            elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
+                pass
+
+            brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_j, normal)
+            brdf_term = brdf_factor * max(0.0, tm.dot(normal, omega_j)) / pdf
+
+            shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
+            shadow_ray = Ray()
+            shadow_ray.origin = shading_point
+            shadow_ray.direction = omega_j
+            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+
+            # Evaluate the visibility term
+            V = 1.0  # V will be 1.0 when there is no hit -> the shadow ray does not intersect any object
+            if shadow_hit.is_hit:
+                V = 0.0  # V will be 0.0 when there is a hit -> the shadow ray intersects an object
+
+            Le = self.scene_data.environment.query_ray(shadow_ray)
+            Lo = Le * V * brdf_term
+            color = Lo
+
+        else:
+            color = self.scene_data.environment.query_ray(ray)
 
         return color
