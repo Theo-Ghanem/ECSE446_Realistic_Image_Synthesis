@@ -34,7 +34,7 @@ class A1Renderer:
         self.camera = Camera(width=width, height=height)
         self.canvas = ti.Vector.field(n=3, dtype=float, shape=(width, height))
         self.scene_data = scene_data
-        self.iter_counter = ti.field(dtype=float, shape=())  # Add this line
+        self.iter_counter = ti.field(dtype=float, shape=())  # Added this line for progressive rendering
 
         self.shade_mode = ti.field(shape=(), dtype=int)
         self.set_shade_hit()
@@ -169,7 +169,8 @@ class A2Renderer:
         self.scene_data = scene_data
 
         self.sample_mode = ti.field(shape=(), dtype=int)
-        self.set_sample_uniform()
+        # self.set_sample_uniform()
+        self.set_sample_brdf() # Default to BRDF sampling for testing
 
 
     def set_sample_uniform(self):    self.sample_mode[None] = self.SampleMode.UNIFORM
@@ -218,8 +219,10 @@ class A2Renderer:
             elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
                 pass
 
-            brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_j, normal)
-            brdf_term = brdf_factor * max(0.0, tm.dot(normal, omega_j)) / pdf
+            # brdf_factor = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal)
+            # brdf_term = brdf_factor * max(0.0, tm.dot(normal, omega_j)) / pdf
+
+            brdf_factor = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
 
             shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
             shadow_ray = Ray()
@@ -233,7 +236,7 @@ class A2Renderer:
                 V = 0.0  # V will be 0.0 when there is a hit -> the shadow ray intersects an object
 
             Le = self.scene_data.environment.query_ray(shadow_ray)
-            Lo = Le * V * brdf_term
+            Lo = Le * V * brdf_factor
             color = Lo
 
         else:
