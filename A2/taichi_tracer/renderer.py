@@ -171,7 +171,7 @@ class A2Renderer:
         self.sample_mode = ti.field(shape=(), dtype=int)
         # self.set_sample_uniform()
         self.set_sample_brdf() # Default to BRDF sampling for testing
-
+        # TODO: change back after testing
 
     def set_sample_uniform(self):    self.sample_mode[None] = self.SampleMode.UNIFORM
     def set_sample_brdf(self):       self.sample_mode[None] = self.SampleMode.BRDF
@@ -223,7 +223,7 @@ class A2Renderer:
             # brdf_term = brdf_factor * max(0.0, tm.dot(normal, omega_j)) / pdf
 
             brdf_factor = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
-
+            brdf_factor = 0.7
             shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
             shadow_ray = Ray()
             shadow_ray.origin = shading_point
