@@ -169,9 +169,8 @@ class A2Renderer:
         self.scene_data = scene_data
 
         self.sample_mode = ti.field(shape=(), dtype=int)
-        # self.set_sample_uniform()
-        self.set_sample_brdf() # Default to BRDF sampling for testing
-        # TODO: change back after testing
+        self.set_sample_uniform()
+        # self.set_sample_brdf() # Default to BRDF sampling for testing
 
     def set_sample_uniform(self):    self.sample_mode[None] = self.SampleMode.UNIFORM
     def set_sample_brdf(self):       self.sample_mode[None] = self.SampleMode.BRDF
@@ -191,6 +190,7 @@ class A2Renderer:
             self.canvas[x, y] = (self.canvas[x, y] * self.iter_counter[None] + color) / (self.iter_counter[None] + 1)
         self.iter_counter[None] += 1
 
+    # Used for progressive rendering
     def reset(self):
         self.canvas.fill(0.)
         self.iter_counter.fill(0.)
@@ -216,7 +216,6 @@ class A2Renderer:
 
             elif self.sample_mode[None] == int(self.SampleMode.BRDF):
                 omega_j = BRDF.sample_direction(material, omega_o, normal)
-                # pdf = BRDF.evaluate_probability(material, omega_o, omega_j, normal)
                 brdf = BRDF.evaluate_brdf(material, omega_o, omega_j, normal)
 
             elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):

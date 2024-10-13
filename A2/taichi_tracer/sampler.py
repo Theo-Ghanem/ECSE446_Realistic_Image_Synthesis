@@ -2,7 +2,6 @@ from typing import List
 
 import taichi as ti
 import taichi.math as tm
-import numpy as np
 
 from .geometry import Geometry
 from .materials import MaterialLibrary, Material
@@ -70,7 +69,6 @@ class BRDF:
         return basis @ omega
 
 
-
     @staticmethod
     @ti.func
     def evaluate_probability(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3) -> float:
@@ -88,14 +86,13 @@ class BRDF:
 
     @staticmethod
     @ti.func
-    def evaluate_brdf(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3) -> tm.vec3:
+    def evaluate_brdf(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3) -> tm.vec3: #Used for BRDF
         brdf = tm.vec3(0.0)
         # Diffuse component
         diffuse = material.Kd
 
         # Specular component (Phong)
         alpha = material.Ns
-        omega_r = reflect(w_o, normal)
         specular = material.Kd * max(0.0, tm.dot(normal, w_i))
 
         if alpha == 1:
@@ -107,8 +104,8 @@ class BRDF:
 
     @staticmethod
     @ti.func
-    def evaluate_brdf_factor(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3, pdf: float) -> tm.vec3:
-        brdf_value = tm.vec3(0.0)
+    def evaluate_brdf_factor(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3, pdf: float) -> tm.vec3: #Used for Uniform
+
         # Diffuse component
         diffuse = material.Kd / tm.pi
 
@@ -117,16 +114,15 @@ class BRDF:
         omega_r = reflect(w_o, normal)
         specular = material.Ks * ((alpha + 1) / (2 * tm.pi)) * tm.pow(max(0.0, tm.dot(omega_r, w_i)), alpha)
 
+        brdf_value = tm.vec3(0.0)
         if alpha == 1:
             brdf_value = diffuse
         else:
             brdf_value = specular
 
-        cos_theta_i = max(0.0, tm.dot(normal, w_i))
-
         brdf_factor = tm.vec3(0.0)
         if pdf > 0.0: # Ensure the pdf is not zero to avoid division by zero
-            brdf_factor = brdf_value * cos_theta_i / pdf
+            brdf_factor = brdf_value * max(0.0, tm.dot(normal, w_i)) / pdf
 
         return brdf_factor
 
@@ -207,7 +203,7 @@ class MeshLightSampler:
         pass
 
 
-
+#Sourced from A2 tutorial
 @ti.func
 def ortho_frames(axis_of_alignment:tm.vec3) -> tm.mat3:
 
@@ -218,7 +214,6 @@ def ortho_frames(axis_of_alignment:tm.vec3) -> tm.mat3:
 
   y_axis = tm.cross(x_axis, axis_of_alignment)
   y_axis = tm.normalize(y_axis)
-
 
   result = tm.mat3([x_axis, y_axis, axis_of_alignment]).transpose()
 
