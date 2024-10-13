@@ -61,28 +61,15 @@ class BRDF:
 
         omega = tm.vec3(omega_x, omega_y, omega_z)
         omega_r = reflect(w_o, normal)
-        basis = tm.mat3(0.0)
+        basis = tm.mat3(1.0)
         if alpha == 1.0:
             basis = ortho_frames(normal)
-        else:
+        elif alpha > 1:
             basis = ortho_frames(omega_r)
 
         return basis @ omega
 
 
-    # @staticmethod
-    # @ti.func
-    # def evaluate_probability(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3) -> float:
-    #     alpha = material.Ns
-    #     rho_d = material.Kd
-    #     rho_s = material.Ks
-    #     result = 0.0
-    #     if alpha == 1:
-    #         result = rho_d.norm() / tm.pi
-    #     elif alpha > 1:
-    #         omega_r = reflect(w_o, normal)
-    #         result = ((rho_s.norm()*(alpha + 1)) / (2 * tm.pi)) * tm.pow(max(0.0, tm.dot(omega_r, w_i)), alpha)
-    #     return result
 
     @staticmethod
     @ti.func
@@ -102,59 +89,33 @@ class BRDF:
     @staticmethod
     @ti.func
     def evaluate_brdf(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3) -> tm.vec3:
-        result = tm.vec3(0.0)
+        brdf = tm.vec3(0.0)
         # Diffuse component
-        diffuse = material.Kd / tm.pi
+        diffuse = material.Kd
 
         # Specular component (Phong)
         alpha = material.Ns
         omega_r = reflect(w_o, normal)
-        specular = material.Ks * ((alpha + 1) / (2 * tm.pi)) * tm.pow(max(0.0, tm.dot(omega_r, w_i)), alpha)
+        specular = material.Kd * max(0.0, tm.dot(normal, w_i))
 
         if alpha == 1:
-            result = diffuse
-        else:
-            result = specular
+            brdf = diffuse
+        elif alpha > 1:
+            brdf = specular
 
-        return result
+        return brdf
 
     @staticmethod
     @ti.func
     def evaluate_brdf_factor(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3, pdf: float) -> tm.vec3:
         brdf_value = BRDF.evaluate_brdf(material, w_o, w_i, normal)
         cos_theta_i = max(0.0, tm.dot(normal, w_i))
-        brdf_factor = brdf_value * cos_theta_i / pdf
-        return brdf_factor
+        # Ensure the pdf is not zero to avoid division by zero
+        brdf_factor = tm.vec3(0.0)
+        if pdf > 0.0:
+            brdf_factor = brdf_value * cos_theta_i / pdf
 
-    # @staticmethod
-    # @ti.func
-    # def evaluate_brdf_factor(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3) -> tm.vec3:
-    #     alpha = material.Ns
-    #     cos_theta_i = max(0.0, tm.dot(normal, w_i))
-    #     result = tm.vec3(0.0)
-    #     if alpha == 1:
-    #         # Diffuse surface
-    #         result = material.Kd * cos_theta_i / tm.pi
-    #     else:
-    #         # Glossy Phong surface
-    #         omega_r = reflect(w_o, normal)
-    #         specular = material.Ks * ((alpha + 2) / (2 * tm.pi)) * tm.pow(max(0.0, tm.dot(omega_r, w_i)), alpha)
-    #         result = specular * cos_theta_i
-    #     return result
-
-    # def evaluate_brdf_factor(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3) -> tm.vec3:
-    #     alpha = material.Ns
-    #     cos_theta_i = max(0.0, tm.dot(normal, w_i))
-    #     result = tm.vec3(0.0)
-    #     if alpha == 1:
-    #         # Diffuse surface
-    #         result = material.Kd * cos_theta_i / tm.pi
-    #     else:
-    #         # Glossy Phong surface
-    #         omega_r = reflect(w_o, normal)
-    #         specular = material.Ks * ((alpha + 2) / (2 * tm.pi)) * tm.pow(max(0.0, tm.dot(omega_r, w_i)), alpha)
-    #         result = specular * cos_theta_i
-    #     return result
+        return brdf_value
 
 # Microfacet BRDF based on PBR 4th edition
 # https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#

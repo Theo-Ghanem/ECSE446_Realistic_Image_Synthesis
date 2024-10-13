@@ -219,11 +219,9 @@ class A2Renderer:
             elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
                 pass
 
-            # brdf_factor = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal)
-            # brdf_term = brdf_factor * max(0.0, tm.dot(normal, omega_j)) / pdf
-
             brdf_factor = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
-            brdf_factor = 0.7
+            # brdf_factor = 0.7
+
             shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
             shadow_ray = Ray()
             shadow_ray.origin = shading_point
