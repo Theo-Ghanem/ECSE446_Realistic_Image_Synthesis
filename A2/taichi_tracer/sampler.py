@@ -108,14 +108,27 @@ class BRDF:
     @staticmethod
     @ti.func
     def evaluate_brdf_factor(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3, pdf: float) -> tm.vec3:
-        brdf_value = BRDF.evaluate_brdf(material, w_o, w_i, normal)
+        brdf_value = tm.vec3(0.0)
+        # Diffuse component
+        diffuse = material.Kd / tm.pi
+
+        # Specular component (Phong)
+        alpha = material.Ns
+        omega_r = reflect(w_o, normal)
+        specular = material.Ks * ((alpha + 1) / (2 * tm.pi)) * tm.pow(max(0.0, tm.dot(omega_r, w_i)), alpha)
+
+        if alpha == 1:
+            brdf_value = diffuse
+        else:
+            brdf_value = specular
+
         cos_theta_i = max(0.0, tm.dot(normal, w_i))
-        # Ensure the pdf is not zero to avoid division by zero
+
         brdf_factor = tm.vec3(0.0)
-        if pdf > 0.0:
+        if pdf > 0.0: # Ensure the pdf is not zero to avoid division by zero
             brdf_factor = brdf_value * cos_theta_i / pdf
 
-        return brdf_value
+        return brdf_factor
 
 # Microfacet BRDF based on PBR 4th edition
 # https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#

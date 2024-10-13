@@ -207,20 +207,20 @@ class A2Renderer:
             omega_o = -ray.direction
             omega_j = tm.vec3(0)
             pdf = 0.0
+            brdf = tm.vec3(0)
 
             if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
                 omega_j = UniformSampler.sample_direction()
                 pdf = UniformSampler.evaluate_probability()
+                brdf = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
 
             elif self.sample_mode[None] == int(self.SampleMode.BRDF):
                 omega_j = BRDF.sample_direction(material, omega_o, normal)
-                pdf = BRDF.evaluate_probability(material, omega_o, omega_j, normal)
+                # pdf = BRDF.evaluate_probability(material, omega_o, omega_j, normal)
+                brdf = BRDF.evaluate_brdf(material, omega_o, omega_j, normal)
 
             elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
                 pass
-
-            brdf_factor = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
-            # brdf_factor = 0.7
 
             shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
             shadow_ray = Ray()
@@ -234,7 +234,7 @@ class A2Renderer:
                 V = 0.0  # V will be 0.0 when there is a hit -> the shadow ray intersects an object
 
             Le = self.scene_data.environment.query_ray(shadow_ray)
-            Lo = Le * V * brdf_factor
+            Lo = Le * V * brdf
             color = Lo
 
         else:
