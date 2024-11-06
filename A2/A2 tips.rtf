@@ -1,0 +1,45 @@
+{\rtf1\ansi\ansicpg1252\cocoartf2818
+\cocoatextscaling0\cocoaplatform0{\fonttbl\f0\fswiss\fcharset0 Helvetica;}
+{\colortbl;\red255\green255\blue255;}
+{\*\expandedcolortbl;;}
+\margl1440\margr1440\vieww11520\viewh8400\viewkind0
+\pard\tx720\tx1440\tx2160\tx2880\tx3600\tx4320\tx5040\tx5760\tx6480\tx7200\tx7920\tx8640\pardirnatural\partightenfactor0
+
+\f0\fs24 \cf0 A2 tips\
+\
+- get x\
+- use distance of hit data to find where x is: ray.origin + ray.direction x hit.distance\
+- get material at x: self.scene_data.material_library.materials[hit_data.material_ID]\
+- call BRDF functions: \
+	- uniform: 4 inputs: w_o, w_i, material, normal\
+	- BRDF(material=self.scene_data.material_library.materials[hit_data.material_ID]\
+	w_o= -ray.direction      (negative)\
+	w_i= uniform_sampler.sample_direction()\
+	normal=hit_data.normal\
+\
+End goal: (Le x V x BRDF x max(0, n.w_i ) / pdf\
+(Uniform pdf: uniform_sampler.evaluate_probability       (here = 1/4pi)\
+\
+n.w_i = tm.dot(hit_data.normal, w_i)\
+\
+Le x V:\
+- make a new ray: Ray2\
+Ray2: origin=x + epsilon normal\
+	direction: w_i\
+\
+Note: we do + epsilon normal so that it doesn\'92t intersect the floor (or the surface where it starts) Epsilon is RAY_OFFSET\
+\
+Check hit_data of ray2 to find V and Le:\
+ hit_data2 = self.scene_data.query_ray(ray2)\
+\
+V \'97>  1 if is_hit = false\
+	0 if is_hit = true \
+Any hit is an occluence\
+\
+\
+Le:\
+Le = self.scene_data.environment.query_ray(Ray2)\
+\
+\
+Note: all these three together: BRDF x max(0, n.w_i ) / pdf is called the BRDF Factor\
+}
