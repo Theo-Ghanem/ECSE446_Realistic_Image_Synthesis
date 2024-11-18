@@ -7,7 +7,7 @@ import numpy as np
 from .geometry import Geometry
 from .materials import MaterialLibrary, Material
 
-#TODO: Implement Uniform Sampling Methods
+#Done-xTODO: Implement Uniform Sampling Methods
 @ti.data_oriented
 class UniformSampler:
     def __init__(self):
@@ -35,7 +35,7 @@ class UniformSampler:
     def evaluate_probability() -> float:
         return 1. / (4. * tm.pi) # 1 / (Area of the unit sphere: 4pi)
 
-#TODO: Implement BRDF Sampling Methods
+#DONE-xTODO: Implement BRDF Sampling Methods
 @ti.data_oriented
 class BRDF:
     def __init__(self):
@@ -250,6 +250,7 @@ class MeshLightSampler:
         ti.loop_config(serialize=True)
         for i in range(self.n_emissive_triangles):
             if xi < self.cdf[i] / self.total_emissive_area[None]:
+            # if xi < self.cdf[i]:
                 sampled_index = i
                 break
         return sampled_index
