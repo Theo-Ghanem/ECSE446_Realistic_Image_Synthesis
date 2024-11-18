@@ -53,7 +53,7 @@ def load_scene_data(
         case SceneName.BUNNY:
             obj_file = "bunny.obj"
         case SceneName.VEACH:
-            obj_file = "veach_spheres.obj"
+            obj_file = "veach_wall.obj"
         case SceneName.SPECULAR_SPHERES:
             obj_file = "specular_spheres.obj"
         case SceneName.BREAKFAST_ROOM:

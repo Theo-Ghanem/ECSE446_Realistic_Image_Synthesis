@@ -175,42 +175,71 @@ class A2Renderer:
 
     @ti.kernel
     def render(self):
-        for x,y in ti.ndrange(self.width, self.height):
-            #TODO: Change the naive renderer to do progressive rendering
-            '''
-            - call generate_ray with jitter = True
-            - progressively accumulate the pixel values in each canvas [x, y] position
-            '''
-            primary_ray = self.camera.generate_ray(x,y)
+        self.iter_counter[None] += 1.0
+        for x, y in ti.ndrange(self.width, self.height):
+            primary_ray = self.camera.generate_ray(x, y, jitter=True)
             color = self.shade_ray(primary_ray)
-            self.canvas[x,y] = color
+            self.canvas[x, y] += (color - self.canvas[x, y]) / self.iter_counter[None]
+
 
     def reset(self):
         self.canvas.fill(0.)
         self.iter_counter.fill(0.)
 
-
     @ti.func
     def shade_ray(self, ray: Ray) -> tm.vec3:
+        print("Shading ray")
         color = tm.vec3(0.)
+        hit_data = self.scene_data.ray_intersector.query_ray(ray)
+        if hit_data.is_hit:
+            x = ray.origin + ray.direction * hit_data.distance
+            normal = hit_data.normal
+            material = self.scene_data.material_library.materials[hit_data.material_id]
+            omega_o = -ray.direction
+            omega_j = tm.vec3(0)
+            pdf = 0.0
+            brdf = tm.vec3(0)
 
-        '''
-        You can change the structure of the shade ray function however you want as there will be computations that are the same for all 3 methods
-        You can have your branching logic anywhere in the code
-        '''
+            if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
+                omega_j = UniformSampler.sample_direction()
+                pdf = UniformSampler.evaluate_probability()
+                brdf = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
 
-        # TODO: Implement Uniform Sampling
-        if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
-            pass 
-        
-        # TODO: Implement BRDF Sampling
-        elif self.sample_mode[None] == int(self.SampleMode.BRDF):
-            pass 
-                           
-        # TODO: 546 Deliverable Only
-        # Implement Microfacet BRDF Sampling
-        elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
-            pass       
+            elif self.sample_mode[None] == int(self.SampleMode.BRDF):
+                omega_j = BRDF.sample_direction(material, omega_o, normal)
+                brdf = BRDF.evaluate_brdf(material, omega_o, omega_j, normal)
+
+            elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
+                pass
+
+            shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
+            shadow_ray = Ray()
+            shadow_ray.origin = shading_point
+            shadow_ray.direction = omega_j
+            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+            shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+
+            # Evaluate the visibility term
+            V = 1.0
+            if shadow_hit.is_hit and shadow_material.Ke.norm() <= 0.0:
+                V = 0.0
+
+            Le = self.scene_data.environment.query_ray(shadow_ray)
+            if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+                Le = shadow_material.Ke
+
+            Lo = Le * V * brdf
+
+            if hit_data.is_hit and material.Ke.norm() > 0:
+                color = material.Ke
+            elif hit_data.is_hit:
+                color = Lo
+            else:
+                color = self.scene_data.environment.query_ray(ray)
+
+        else:
+            color = self.scene_data.environment.query_ray(ray)
+            print("No hit")
 
         return color
 

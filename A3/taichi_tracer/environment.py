@@ -55,8 +55,14 @@ class Environment:
 
     @ti.func
     def query_ray(self, ray: Ray) -> tm.vec3:
-        #TODO: copy your A2 solution
-        pass
+        #xTODO: copy your A2 solution
+        u = 0.5 + tm.atan2(ray.direction.z, ray.direction.x) / (2 * tm.pi)
+        v = 0.5 + tm.asin(ray.direction.y) / tm.pi
+
+        x = int(u * self.x_resolution)
+        y = int(v * self.y_resolution)
+
+        return self.image[x, y]
 
     @ti.kernel
     def precompute_envmap(self):
@@ -68,7 +74,7 @@ class Environment:
 
     @ti.func
     def precompute_scalar(self):
-        # TODO: 546 Deliverable Only
+        # xTODO: 546 Deliverable Only
         # Precompute the scalar version of your environment map
         # this is your join distribution p(phi, theta)
         #  self.image_scalar[x, y] = luminance*sin_theta
@@ -77,7 +83,7 @@ class Environment:
 
     @ti.func
     def precompute_marginal_ptheta(self):
-        # TODO: 546 Deliverable Only
+        # xTODO: 546 Deliverable Only
         # Precompute the marginal distribution p(theta)
         # 1 - compute the cumulative sum of the row for each entry of theta
         # 2 - normalize the marginal dsitribution
@@ -86,7 +92,7 @@ class Environment:
 
     @ti.func
     def precompute_conditional_p_phi_given_theta(self):
-        # TODO: 546 Deliverable Only
+        # xTODO: 546 Deliverable Only
         # Compute conditional distribution p(phi | theta)
         # p (phi | theta) = p(phi, theta) / p(theta)
         # self.conditional_p_phi_given_theta[x, y]
@@ -94,14 +100,14 @@ class Environment:
 
     @ti.func
     def precompute_cdfs(self):
-        # TODO: 546 Deliverable Only
+        # xTODO: 546 Deliverable Only
         # Compute the CDF for p(theta) and p(phi | theta)
         # self.cdf_ptheta
         pass
 
     @ti.func
     def sample_theta(self, u1: float) -> int:
-        # TODO: 546 Deliverable Only
+        # xTODO: 546 Deliverable Only
         # given a uniform random value, return the corresponding **index** of theta
         # 
         # ==== THIS IS JUST AN EXAMPLE OF THE RETURN TYPE ===
@@ -115,7 +121,7 @@ class Environment:
 
     @ti.func
     def sample_phi(self, theta: int, u2: float) -> int: 
-        # TODO: 546 Deliverable Only
+        # xTODO: 546 Deliverable Only
         # given a uniform random value, and theta, return the corresponding **index** of phi
         # 
         # ==== THIS IS JUST AN EXAMPLE OF THE RETURN TYPE ===
@@ -137,7 +143,7 @@ class Environment:
         sampled_theta = self.sample_theta(u1)
         sampled_phi = self.sample_phi(sampled_theta, u2)
         
-        # TODO: 546 Deliverable Only
+        # xTODO: 546 Deliverable Only
 
         # Once you have found the sampled theta and sampled phi indices
         # You will need to interpolate them to their actual value

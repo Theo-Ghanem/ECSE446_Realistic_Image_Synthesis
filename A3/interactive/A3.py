@@ -1,6 +1,8 @@
 import taichi as ti
 import taichi.math as tm
-ti.init(arch=ti.gpu, default_fp=ti.f32, default_ip=ti.i32, fast_math=False)
+ti.init(arch=ti.metal, default_fp=ti.f32, default_ip=ti.i32, fast_math=False)
+import sys
+sys.path.append('/Users/theoghanem/Dev/ECSE446_Realistic_Image_Synthesis/A3')
 
 from taichi_tracer.renderer import A3Renderer
 from taichi_tracer.camera_controller import CameraController
