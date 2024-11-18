@@ -412,11 +412,11 @@ class A3Renderer:
             shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
 
             V = 1.0
-            if shadow_hit.is_hit and shadow_material.Ke.norm() <= 0.0:
+            if shadow_hit.is_hit and (shadow_hit.triangle_id == sampled_light_triangle or shadow_material.Ke.norm() <= 0.0):
                 V = 0.0
 
             Le = self.scene_data.environment.query_ray(shadow_ray)
-            if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+            if shadow_hit.is_hit and shadow_hit.triangle_id != sampled_light_triangle and shadow_material.Ke.norm() > 0:
                 Le = shadow_material.Ke
 
             Lo = Le * V * brdf
