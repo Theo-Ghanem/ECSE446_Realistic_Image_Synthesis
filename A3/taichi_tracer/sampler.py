@@ -126,6 +126,27 @@ class BRDF:
 
         return brdf_factor
 
+    @staticmethod
+    @ti.func
+    def evaluate_brdf_LIS(material: Material, w_o: tm.vec3, w_i: tm.vec3, normal: tm.vec3,
+                             pdf: float) -> tm.vec3:  # Used for Uniform
+
+        # Diffuse component
+        diffuse = material.Kd / tm.pi
+
+        # Specular component (Phong)
+        alpha = material.Ns
+        omega_r = reflect(w_o, normal)
+        specular = material.Ks * ((alpha + 1) / (2 * tm.pi)) * tm.pow(max(0.0, tm.dot(omega_r, w_i)), alpha)
+
+        brdf_value = tm.vec3(0.0)
+        if alpha == 1:
+            brdf_value = diffuse
+        else:
+            brdf_value = specular
+
+        return brdf_value
+
 # Microfacet BRDF based on PBR 4th edition
 # https://www.pbr-book.org/4ed/Reflection_Models/Roughness_Using_Microfacet_Theory#
 # xTODO: Implement Microfacet BRDF Methods
@@ -216,7 +237,7 @@ class MeshLightSampler:
         # Area of a triangle ABC = 0.5 * | AB cross AC |
         # 
         #
-        # placholder
+        # placeholder
 
         # Compute the vectors representing two sides of the triangle
         AB = v1 - v0
@@ -238,6 +259,10 @@ class MeshLightSampler:
             cumulative_sum += self.emissive_triangle_areas[i]
             self.cdf[i] = cumulative_sum / self.total_emissive_area[None]
 
+        # ti.loop_config(serialize=True)
+        # for i in range(self.n_emissive_triangles):
+        #     self.cdf[i] /= self.total_emissive_area[None]
+
 
     @ti.func
     def sample_emissive_triangle(self) -> int:
@@ -246,14 +271,15 @@ class MeshLightSampler:
         #
         # placeholder
         xi = ti.random()
-        sampled_index = self.n_emissive_triangles - 1
-        ti.loop_config(serialize=True)
-        for i in range(self.n_emissive_triangles):
-            if xi < self.cdf[i] / self.total_emissive_area[None]:
-            # if xi < self.cdf[i]:
-                sampled_index = i
-                break
-        return sampled_index
+        left = 0
+        right = self.n_emissive_triangles - 1
+        while left < right:
+            mid = (left + right) // 2
+            if self.cdf[mid] < xi:
+                left = mid + 1
+            else:
+                right = mid
+        return left
 
 
     @ti.func
