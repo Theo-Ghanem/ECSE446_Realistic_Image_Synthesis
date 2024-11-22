@@ -30,14 +30,14 @@ def main():
     fov=60.
     )
 
-    spps = [1, 10, 100, 1000]
+    spps = [1, 10, 100]
 
     # List of booleans to control which rendering modes to execute
     execute_modes = {
         'uniform': False,
         'brdf': False,
-        'light': True,
-        'mis': False
+        'light': False,
+        'mis': True
     }
 
     if execute_modes['uniform']:
