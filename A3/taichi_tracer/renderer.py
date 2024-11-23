@@ -351,9 +351,9 @@ class A3Renderer:
         self.mis_pbrdf[None] = 0.5
 
         self.sample_mode = ti.field(shape=(), dtype=int)
-        # self.set_sample_uniform()
+        self.set_sample_uniform()
         # self.set_sample_light() # changed for testing
-        self.set_sample_mis() # changed for testing
+        # self.set_sample_mis() # changed for testing
 
     def set_sample_uniform(self): 
         self.sample_mode[None] = self.SampleMode.UNIFORM
@@ -455,22 +455,16 @@ class A3Renderer:
                             light_direction, sampled_light_triangle = self.scene_data.mesh_light_sampler.sample_mesh_lights(x)
                             pdf_light = self.scene_data.mesh_light_sampler.evaluate_probability()
                             pdf = self.mis_plight[None] * pdf_light
-                            brdf = BRDF.evaluate_brdf_factor(material, omega_o, light_direction, normal_x, pdf)
-                        else:
-                            # BRDF sampling
-                            light_direction = BRDF.sample_direction(material, omega_o, normal_x)
-                            brdf = BRDF.evaluate_brdf(material, omega_o, light_direction, normal_x)
+                            brdf = BRDF.evaluate_brdf_factor(material, omega_o, light_direction, normal_x, pdf_light)
 
-                        shading_point = tm.vec3(x + self.RAY_OFFSET * normal_x)
-                        shadow_ray = Ray()
-                        shadow_ray.origin = shading_point
-                        shadow_ray.direction = light_direction
-                        shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
-                        shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
-                        shadow_normal = shadow_hit.normal
+                            shading_point = tm.vec3(x + self.RAY_OFFSET * normal_x)
+                            shadow_ray = Ray()
+                            shadow_ray.origin = shading_point
+                            shadow_ray.direction = light_direction
+                            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+                            shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+                            shadow_normal = shadow_hit.normal
 
-
-                        if u < self.mis_plight[None]:
                             # Light sampling
                             if hit_data.is_hit and material.Ke.norm() > 0:
                                 color = material.Ke
@@ -491,6 +485,16 @@ class A3Renderer:
                                     color = 0.0
                         else:
                             # BRDF sampling
+                            light_direction = BRDF.sample_direction(material, omega_o, normal_x)
+                            brdf = BRDF.evaluate_brdf(material, omega_o, light_direction, normal_x)
+
+                            shading_point = tm.vec3(x + self.RAY_OFFSET * normal_x)
+                            shadow_ray = Ray()
+                            shadow_ray.origin = shading_point
+                            shadow_ray.direction = light_direction
+                            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+                            shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+
                             # Evaluate the visibility term
                             V = 1.0
                             if shadow_hit.is_hit and shadow_material.Ke.norm() <= 0.0:
@@ -500,7 +504,7 @@ class A3Renderer:
                             if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
                                 Le = shadow_material.Ke
 
-                            Lo = Le * V * brdf
+                            Lo = Le * V * brdf / self.mis_pbrdf[None]
 
                             if hit_data.is_hit and material.Ke.norm() > 0:
                                 color = material.Ke
@@ -508,6 +512,7 @@ class A3Renderer:
                                 color = Lo
                             else:
                                 color = self.scene_data.environment.query_ray(ray)
+
 
                 else:
                     color = self.scene_data.environment.query_ray(ray)

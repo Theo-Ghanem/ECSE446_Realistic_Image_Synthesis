@@ -1,5 +1,6 @@
 import taichi as ti
 import taichi.math as tm
+import os
 
 ti.init(arch=ti.gpu, default_fp=ti.f32, default_ip=ti.i32, fast_math=False)
 
@@ -23,6 +24,9 @@ def postprocessing(render):
 
 
 def main():
+    output_dir = 'UpdatedResultsRenders'
+    os.makedirs(output_dir, exist_ok=True)
+
     scene_data = load_scene_data(SceneName.VEACH, EnvironmentName.BLACK)
     renderer = A3Renderer(scene_data=scene_data, width=1024, height=512)
 
@@ -47,7 +51,7 @@ def main():
         img = postprocessing(img)
         img = np.rot90(np.clip(img, 0, 1))
 
-        title = "brdf_veach_{x}spp.png".format(x=spp)
+        title = os.path.join(output_dir, "brdf_veach_{x}spp.png".format(x=spp))
         plt.imshow(img)
         plt.axis('off')
         plt.savefig(title)
@@ -64,14 +68,14 @@ def main():
         img = postprocessing(img)
         img = np.rot90(np.clip(img, 0, 1))
 
-        title = "light_veach_{x}spp.png".format(x=spp)
+        title = os.path.join(output_dir, "light_veach_{x}spp.png".format(x=spp))
         plt.imshow(img)
         plt.axis('off')
         plt.savefig(title)
         plt.clf()
 
     renderer.set_sample_mis()
-    mis_weights = [0.0, 0.25, 0.5, 0.75, 1.0]
+    mis_weights = [0.25, 0.5, 0.75]
 
     for spp in spps:
         for w_brdf in mis_weights:
@@ -85,8 +89,8 @@ def main():
             img = postprocessing(img)
             img = np.rot90(np.clip(img, 0, 1))
 
-            title = "mis_veach_{x}_brdf_{y}_light_{z}spp.png".format(x=int(100 * w_brdf), y=int(100 * (1.0 - w_brdf)),
-                                                                     z=spp)
+            title = os.path.join(output_dir, "mis_veach_{x}_brdf_{y}_light_{z}spp.png".format(
+                x=int(100 * w_brdf), y=int(100 * (1.0 - w_brdf)), z=spp))
             plt.imshow(img)
             plt.axis('off')
             plt.savefig(title)
