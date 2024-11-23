@@ -212,7 +212,8 @@ class A2Renderer:
             if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
                 omega_j = UniformSampler.sample_direction()
                 pdf = UniformSampler.evaluate_probability()
-                brdf = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
+                brdf_value = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
+                brdf = brdf_value * max(0.0, tm.dot(normal, omega_j)) / pdf
 
             elif self.sample_mode[None] == int(self.SampleMode.BRDF):
                 omega_j = BRDF.sample_direction(material, omega_o, normal)

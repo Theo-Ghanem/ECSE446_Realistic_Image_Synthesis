@@ -120,11 +120,11 @@ class BRDF:
         else:
             brdf_value = specular
 
-        brdf_factor = tm.vec3(0.0)
-        if pdf > 0.0:  # Ensure the pdf is not zero to avoid division by zero
-            brdf_factor = brdf_value * max(0.0, tm.dot(normal, w_i)) / pdf
+        # brdf_factor = tm.vec3(0.0)
+        # if pdf > 0.0:  # Ensure the pdf is not zero to avoid division by zero
+        #     brdf_factor = brdf_value * max(0.0, tm.dot(normal, w_i)) / pdf
 
-        return brdf_factor
+        return brdf_value
 
     @staticmethod
     @ti.func

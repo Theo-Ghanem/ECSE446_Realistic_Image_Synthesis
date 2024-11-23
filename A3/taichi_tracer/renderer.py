@@ -202,8 +202,8 @@ class A2Renderer:
             if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
                 omega_j = UniformSampler.sample_direction()
                 pdf = UniformSampler.evaluate_probability()
-                brdf = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
-
+                brdf_value = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
+                brdf = brdf_value * max(0.0, tm.dot(normal, omega_j)) / pdf
             elif self.sample_mode[None] == int(self.SampleMode.BRDF):
                 omega_j = BRDF.sample_direction(material, omega_o, normal)
                 brdf = BRDF.evaluate_brdf(material, omega_o, omega_j, normal)
@@ -404,7 +404,6 @@ class A3Renderer:
                 elif hit_data.is_hit:
                     light_direction, sampled_light_triangle = self.scene_data.mesh_light_sampler.sample_mesh_lights(x)
                     pdf = self.scene_data.mesh_light_sampler.evaluate_probability()
-                    # brdf = BRDF.evaluate_brdf_LIS(material, omega_o, light_direction, normal_x, pdf)
                     brdf = BRDF.evaluate_brdf_factor(material, omega_o, light_direction, normal_x, pdf)
 
                     y = tm.vec3(x + self.RAY_OFFSET * normal_x)
@@ -456,13 +455,11 @@ class A3Renderer:
                             light_direction, sampled_light_triangle = self.scene_data.mesh_light_sampler.sample_mesh_lights(x)
                             pdf_light = self.scene_data.mesh_light_sampler.evaluate_probability()
                             pdf = self.mis_plight[None] * pdf_light
-                            brdf = BRDF.evaluate_brdf_LIS(material, omega_o, light_direction, normal_x, pdf_light)
+                            brdf = BRDF.evaluate_brdf_factor(material, omega_o, light_direction, normal_x, pdf)
                         else:
                             # BRDF sampling
                             light_direction = BRDF.sample_direction(material, omega_o, normal_x)
-                            pdf_brdf = BRDF.evaluate_probability(material, omega_o, light_direction, normal_x)
-                            pdf = self.mis_pbrdf[None] * pdf_brdf
-                            brdf = BRDF.evaluate_brdf_LIS(material, omega_o, light_direction, normal_x, pdf_brdf)
+                            brdf = BRDF.evaluate_brdf(material, omega_o, light_direction, normal_x)
 
                         shading_point = tm.vec3(x + self.RAY_OFFSET * normal_x)
                         shadow_ray = Ray()
@@ -472,20 +469,46 @@ class A3Renderer:
                         shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
                         shadow_normal = shadow_hit.normal
 
-                        max_x = max(0, tm.dot(normal_x, light_direction))
-                        max_y = max(0, tm.dot(shadow_normal, -light_direction))
 
-                        Le = tm.vec3(0.)
-                        if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
-                            Le = shadow_material.Ke
+                        if u < self.mis_plight[None]:
+                            # Light sampling
+                            if hit_data.is_hit and material.Ke.norm() > 0:
+                                color = material.Ke
+                            elif hit_data.is_hit:
+                                max_x = max(0, tm.dot(normal_x, light_direction))
+                                max_y = max(0, tm.dot(shadow_normal, -light_direction))
 
-                        Lo = (Le * brdf * max_x * max_y) / (pdf * shadow_hit.distance ** 2)
+                                Le = tm.vec3(0.)
+                                if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+                                    Le = shadow_material.Ke
 
-                        if shadow_hit.is_hit:
-                            # if shadow_hit.triangle_id == sampled_light_triangle and not hit_data.is_backfacing:
-                            color = Lo
+                                Lo = (Le * brdf * max_x * max_y) / (pdf * shadow_hit.distance ** 2)
+
+                                if shadow_hit.is_hit:
+                                    if shadow_hit.triangle_id == sampled_light_triangle and not hit_data.is_backfacing:
+                                        color = Lo
+                                else:
+                                    color = 0.0
                         else:
-                            color = 0.0
+                            # BRDF sampling
+                            # Evaluate the visibility term
+                            V = 1.0
+                            if shadow_hit.is_hit and shadow_material.Ke.norm() <= 0.0:
+                                V = 0.0
+
+                            Le = self.scene_data.environment.query_ray(shadow_ray)
+                            if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+                                Le = shadow_material.Ke
+
+                            Lo = Le * V * brdf
+
+                            if hit_data.is_hit and material.Ke.norm() > 0:
+                                color = material.Ke
+                            elif hit_data.is_hit:
+                                color = Lo
+                            else:
+                                color = self.scene_data.environment.query_ray(ray)
+
                 else:
                     color = self.scene_data.environment.query_ray(ray)
 
