@@ -266,7 +266,7 @@ class MeshLightSampler:
 
     @ti.func
     def sample_emissive_triangle(self) -> int:
-        # TODO: Sample an emissive triangle using the CDF
+        # xTODO: Sample an emissive triangle using the CDF
         # return the **index** of the triangle
         #
         # placeholder
@@ -306,7 +306,7 @@ class MeshLightSampler:
         # https://www.pbr-book.org/4ed/Shapes/Triangle_Meshes#Sampling
         # https://www.pbr-book.org/4ed/Shapes/Triangle_Meshes#SampleUniformTriangle
 
-        # TODO: Sample a direction towards your mesh light
+        # xTODO: Sample a direction towards your mesh light
         # given your sampled triangle vertices
         # generate random barycentric coordinates
         # calculate the light direction

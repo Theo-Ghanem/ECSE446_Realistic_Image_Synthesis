@@ -175,43 +175,69 @@ class A2Renderer:
 
     @ti.kernel
     def render(self):
-        for x,y in ti.ndrange(self.width, self.height):
-            #TODO: Change the naive renderer to do progressive rendering
-            '''
-            - call generate_ray with jitter = True
-            - progressively accumulate the pixel values in each canvas [x, y] position
-            '''
-            primary_ray = self.camera.generate_ray(x,y)
+        self.iter_counter[None] += 1.0
+        for x, y in ti.ndrange(self.width, self.height):
+            primary_ray = self.camera.generate_ray(x, y, jitter=True)
             color = self.shade_ray(primary_ray)
-            self.canvas[x,y] = color
+            self.canvas[x, y] += (color - self.canvas[x, y]) / self.iter_counter[None]
+
 
     def reset(self):
         self.canvas.fill(0.)
         self.iter_counter.fill(0.)
 
-
     @ti.func
     def shade_ray(self, ray: Ray) -> tm.vec3:
         color = tm.vec3(0.)
+        hit_data = self.scene_data.ray_intersector.query_ray(ray)
+        if hit_data.is_hit:
+            x = ray.origin + ray.direction * hit_data.distance
+            normal = hit_data.normal
+            material = self.scene_data.material_library.materials[hit_data.material_id]
+            omega_o = -ray.direction
+            omega_j = tm.vec3(0)
+            pdf = 0.0
+            brdf = tm.vec3(0)
 
-        '''
-        You can change the structure of the shade ray function however you want as there will be computations that are the same for all 3 methods
-        You can have your branching logic anywhere in the code
-        '''
+            if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
+                omega_j = UniformSampler.sample_direction()
+                pdf = UniformSampler.evaluate_probability()
+                brdf_value = BRDF.evaluate_brdf_factor(material, omega_o, omega_j, normal, pdf)
+                brdf = brdf_value * max(0.0, tm.dot(normal, omega_j)) / pdf
+            elif self.sample_mode[None] == int(self.SampleMode.BRDF):
+                omega_j = BRDF.sample_direction(material, omega_o, normal)
+                brdf = BRDF.evaluate_brdf(material, omega_o, omega_j, normal)
 
-        # TODO: Implement Uniform Sampling
-        if self.sample_mode[None] == int(self.SampleMode.UNIFORM):
-            pass 
-        
-        # TODO: Implement BRDF Sampling
-        elif self.sample_mode[None] == int(self.SampleMode.BRDF):
-            pass 
-                           
-        # TODO: 546 Deliverable Only
-        # Implement Microfacet BRDF Sampling
-        elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
-            pass       
+            elif self.sample_mode[None] == int(self.SampleMode.MICROFACET):
+                pass
 
+            shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
+            shadow_ray = Ray()
+            shadow_ray.origin = shading_point
+            shadow_ray.direction = omega_j
+            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+            shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+
+            # Evaluate the visibility term
+            V = 1.0
+            if shadow_hit.is_hit and shadow_material.Ke.norm() <= 0.0:
+                V = 0.0
+
+            Le = self.scene_data.environment.query_ray(shadow_ray)
+            if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+                Le = shadow_material.Ke
+
+            Lo = Le * V * brdf
+
+            if hit_data.is_hit and material.Ke.norm() > 0:
+                color = material.Ke
+            elif hit_data.is_hit:
+                color = Lo
+            else:
+                color = self.scene_data.environment.query_ray(ray)
+
+        # else:
+        #     color = self.scene_data.environment.query_ray(ray)
         return color
 
 
@@ -292,7 +318,6 @@ class EnvISRenderer:
 
 @ti.data_oriented
 class A3Renderer:
-
     # Enumerate the different sampling modes
     class SampleMode(IntEnum):
         UNIFORM = 1
@@ -300,12 +325,12 @@ class A3Renderer:
         LIGHT = 3
         MIS = 4
 
-    def __init__( 
-        self, 
-        width: int, 
-        height: int, 
-        scene_data: SceneData
-        ) -> None:
+    def __init__(
+            self,
+            width: int,
+            height: int,
+            scene_data: SceneData
+    ) -> None:
 
         self.RAY_OFFSET = 1e-6
 
@@ -317,7 +342,7 @@ class A3Renderer:
         self.iter_counter = ti.field(dtype=float, shape=())
         self.scene_data = scene_data
         self.a2_renderer = A2Renderer(width=self.width, height=self.height, scene_data=self.scene_data)
-        
+
         self.mis_plight = ti.field(dtype=float, shape=())
         self.mis_pbrdf = ti.field(dtype=float, shape=())
 
@@ -326,29 +351,34 @@ class A3Renderer:
 
         self.sample_mode = ti.field(shape=(), dtype=int)
         self.set_sample_uniform()
+        # self.set_sample_light() # changed for testing
+        # self.set_sample_mis() # changed for testing
 
-
-    def set_sample_uniform(self): 
+    def set_sample_uniform(self):
         self.sample_mode[None] = self.SampleMode.UNIFORM
         self.a2_renderer.set_sample_uniform()
-    def set_sample_brdf(self):    
+
+    def set_sample_brdf(self):
         self.sample_mode[None] = self.SampleMode.BRDF
         self.a2_renderer.set_sample_brdf()
-    def set_sample_light(self):    self.sample_mode[None] = self.SampleMode.LIGHT
-    def set_sample_mis(self):    self.sample_mode[None] = self.SampleMode.MIS
 
+    def set_sample_light(self):
+        self.sample_mode[None] = self.SampleMode.LIGHT
+
+    def set_sample_mis(self):
+        self.sample_mode[None] = self.SampleMode.MIS
 
     @ti.kernel
     def render(self):
         self.iter_counter[None] += 1.0
-        for x,y in ti.ndrange(self.width, self.height):
-            primary_ray = self.camera.generate_ray(x,y, jitter=True)
+        for x, y in ti.ndrange(self.width, self.height):
+            primary_ray = self.camera.generate_ray(x, y, jitter=True)
             color = self.shade_ray(primary_ray)
-            self.canvas[x,y] += (color - self.canvas[x,y])/self.iter_counter[None]
-    
+            self.canvas[x, y] += (color - self.canvas[x, y]) / self.iter_counter[None]
+
     @ti.kernel
     def postprocess(self):
-        for x,y in ti.ndrange(self.width, self.height):
+        for x, y in ti.ndrange(self.width, self.height):
             self.canvas_postprocessed[x, y] = tm.pow(self.canvas[x, y], tm.vec3(1.0 / 2.2))
             self.canvas_postprocessed[x, y] = tm.clamp(self.canvas_postprocessed[x, y], xmin=0.0, xmax=1.0)
 
@@ -356,22 +386,141 @@ class A3Renderer:
         self.canvas.fill(0.)
         self.iter_counter.fill(0.)
 
-
     @ti.func
     def shade_ray(self, ray: Ray) -> tm.vec3:
         color = tm.vec3(0.)
-        if self.sample_mode[None] == int(self.SampleMode.UNIFORM) or self.sample_mode[None] == int(self.SampleMode.BRDF):
+        if self.sample_mode[None] == int(self.SampleMode.UNIFORM) or self.sample_mode[None] == int(
+                self.SampleMode.BRDF):
             # Uniform or BRDF just calls the A2 renderer
-            # TODO: Implement Mesh Light support for your A2 renderer
+            # DONE-xTODO: Implement Mesh Light support for your A2 renderer
             color = self.a2_renderer.shade_ray(ray)
         else:
             if self.sample_mode[None] == int(self.SampleMode.LIGHT):
-                # TODO: Implement Light Importance Sampling
-                pass        
+                hit_data = self.scene_data.ray_intersector.query_ray(ray)
+                x = ray.origin + ray.direction * hit_data.distance
+                normal_x = hit_data.normal
+                material = self.scene_data.material_library.materials[hit_data.material_id]
+                omega_o = -ray.direction
+
+                if hit_data.is_hit and material.Ke.norm() > 0:
+                    color = material.Ke
+                elif hit_data.is_hit:
+                    light_direction, sampled_light_triangle = self.scene_data.mesh_light_sampler.sample_mesh_lights(x)
+                    pdf = self.scene_data.mesh_light_sampler.evaluate_probability()
+                    brdf = BRDF.evaluate_brdf_factor(material, omega_o, light_direction, normal_x, pdf)
+
+                    y = tm.vec3(x + self.RAY_OFFSET * normal_x)
+                    shadow_ray = Ray()
+                    shadow_ray.origin = y
+                    shadow_ray.direction = light_direction
+                    shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+                    shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+                    shadow_normal = shadow_hit.normal
+
+                    max_x = max(0, tm.dot(normal_x, light_direction))
+                    max_y = max(0, tm.dot(shadow_normal, -light_direction))
+
+                    Le = tm.vec3(0.)
+                    if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+                        Le = shadow_material.Ke
+
+                    # V = 1.0
+                    # if shadow_hit.is_hit and shadow_hit.triangle_id == sampled_light_triangle and shadow_material.Ke.norm() > 0.0:
+                    #     V = 0.0
+
+                    Lo = (Le * brdf * max_x * max_y) / (pdf * shadow_hit.distance ** 2)
+
+                    if shadow_hit.is_hit:
+                        if shadow_hit.triangle_id == sampled_light_triangle and not hit_data.is_backfacing:
+                            color = Lo
+                    else:
+                        color = 0.0
+                else:
+                    color = self.scene_data.environment.query_ray(ray)
             if self.sample_mode[None] == int(self.SampleMode.MIS):
-                # TODO: Implement MIS
-                pass     
-                     
+                # xTODO: Implement MIS
+                hit_data = self.scene_data.ray_intersector.query_ray(ray)
+                if hit_data.is_hit:
+                    x = ray.origin + ray.direction * hit_data.distance
+                    normal_x = hit_data.normal
+                    material = self.scene_data.material_library.materials[hit_data.material_id]
+                    omega_o = -ray.direction
+                    light_direction = tm.vec3(0)
+                    sampled_light_triangle = 0
+                    brdf = tm.vec3(0)
+                    pdf = 0.0
+                    if hit_data.is_hit and material.Ke.norm() > 0:
+                        color = material.Ke
+                    else:
+                        u = ti.random()
+                        if u < self.mis_plight[None]:
+                            # Light sampling
+                            light_direction, sampled_light_triangle = self.scene_data.mesh_light_sampler.sample_mesh_lights(
+                                x)
+                            pdf_light = self.scene_data.mesh_light_sampler.evaluate_probability()
+                            pdf = self.mis_plight[None] * pdf_light
+                            brdf = BRDF.evaluate_brdf_factor(material, omega_o, light_direction, normal_x, pdf_light)
+
+                            shading_point = tm.vec3(x + self.RAY_OFFSET * normal_x)
+                            shadow_ray = Ray()
+                            shadow_ray.origin = shading_point
+                            shadow_ray.direction = light_direction
+                            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+                            shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+                            shadow_normal = shadow_hit.normal
+
+                            # Light sampling
+                            if hit_data.is_hit and material.Ke.norm() > 0:
+                                color = material.Ke
+                            elif hit_data.is_hit:
+                                max_x = max(0, tm.dot(normal_x, light_direction))
+                                max_y = max(0, tm.dot(shadow_normal, -light_direction))
+
+                                Le = tm.vec3(0.)
+                                if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+                                    Le = shadow_material.Ke
+
+                                Lo = (Le * brdf * max_x * max_y) / (pdf * shadow_hit.distance ** 2)
+
+                                if shadow_hit.is_hit:
+                                    if shadow_hit.triangle_id == sampled_light_triangle and not hit_data.is_backfacing:
+                                        color = Lo
+                                else:
+                                    color = 0.0
+                        else:
+                            # BRDF sampling
+                            light_direction = BRDF.sample_direction(material, omega_o, normal_x)
+                            brdf = BRDF.evaluate_brdf(material, omega_o, light_direction, normal_x)
+
+                            shading_point = tm.vec3(x + self.RAY_OFFSET * normal_x)
+                            shadow_ray = Ray()
+                            shadow_ray.origin = shading_point
+                            shadow_ray.direction = light_direction
+                            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+                            shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+
+                            # Evaluate the visibility term
+                            V = 1.0
+                            if shadow_hit.is_hit and shadow_material.Ke.norm() <= 0.0:
+                                V = 0.0
+
+                            Le = self.scene_data.environment.query_ray(shadow_ray)
+                            if shadow_hit.is_hit and shadow_material.Ke.norm() > 0:
+                                Le = shadow_material.Ke
+
+                            Lo = Le * V * brdf / self.mis_pbrdf[None]
+
+                            if hit_data.is_hit and material.Ke.norm() > 0:
+                                color = material.Ke
+                            elif hit_data.is_hit:
+                                color = Lo
+                            else:
+                                color = self.scene_data.environment.query_ray(ray)
+
+
+                else:
+                    color = self.scene_data.environment.query_ray(ray)
+
         return color
 
 

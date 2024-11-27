@@ -1,0 +1,9 @@
+Metadata-Version: 2.1
+Name: taichi_tracer
+Version: 0.0.1
+Requires-Python: ==3.10.14
+Requires-Dist: taichi
+Requires-Dist: pyQt5
+Requires-Dist: matplotlib
+Requires-Dist: numpy
+Requires-Dist: tqdm

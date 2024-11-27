@@ -2,6 +2,9 @@ import taichi as ti
 import taichi.math as tm
 ti.init(arch=ti.gpu, default_fp=ti.f32, default_ip=ti.i32)
 
+import sys
+sys.path.append('/Users/theoghanem/Dev/ECSE446_Realistic_Image_Synthesis/A4')
+
 from taichi_tracer.renderer import EnvISRenderer
 from taichi_tracer.camera_controller import CameraController
 from taichi_tracer.scene_data_loader import SceneName, EnvironmentName, load_scene_data

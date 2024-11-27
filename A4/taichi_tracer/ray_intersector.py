@@ -21,33 +21,68 @@ class RayIntersector(ABC):
     def query_ray(ray: Ray) -> HitData:
         pass
 
-
     @ti.func
     def intersect_triangle(self, ray: Ray, triangle_id: int) -> HitData:
 
         hit_data = HitData()
 
         # Grab Vertices
-        vert_ids = self.geometry.triangle_vertex_ids[triangle_id-1] - 1  # Vertices are indexed from 1
+        vert_ids = self.geometry.triangle_vertex_ids[triangle_id - 1] - 1  # Vertices are indexed from 1
         v0 = self.geometry.vertices[vert_ids[0]]
         v1 = self.geometry.vertices[vert_ids[1]]
         v2 = self.geometry.vertices[vert_ids[2]]
 
         # Normals at each vertex
-        normal_indices = self.geometry.triangle_normal_ids[triangle_id-1]-1
+        normal_indices = self.geometry.triangle_normal_ids[triangle_id - 1] - 1
 
         normal_0 = self.geometry.normals[normal_indices[0]]
         normal_1 = self.geometry.normals[normal_indices[1]]
         normal_2 = self.geometry.normals[normal_indices[2]]
 
         # Material of the triangle
-        material_id = self.geometry.triangle_material_ids[triangle_id-1]
-
+        material_id = self.geometry.triangle_material_ids[triangle_id - 1]
 
         '''
         TODO: Copy your A1 solution
         '''
 
+        # 1st compute edge vectors:
+        e1 = v1 - v0
+        e2 = v2 - v0
+
+        det = tm.cross(ray.direction, e2).dot(e1)
+
+        if -self.EPSILON < det < self.EPSILON:  # if det close to 0 -> ray is parallel to the triangle
+            hit_data.is_hit = False
+        else:  # it intersects the triangle, inside or outside?
+            # compute the barycentric coordinates:
+            u = (ray.origin - v0).dot(tm.cross(ray.direction, e2)) / det
+            v = (ray.direction.dot(tm.cross((ray.origin - v0), e1))) / det
+            w = 1.0 - u - v
+
+            # We then verify whether the barycentric coordinates fall within the sheared triangle frame bounds:
+            if 0 <= u <= 1 and 0 <= v <= 1 and u + v <= 1:
+                # If all these tests pass, then the ray intersects the triangle at parametric distance t:
+                t = (e2.dot(tm.cross((ray.origin - v0), e1))) / det
+
+                # To account for numerics, we only consider intersections for 𝑡 > EPSILON
+                if t < self.EPSILON:  # check if the intersection is behind the ray
+                    hit_data.is_hit = False
+
+                else:  # We compute the intersection point:
+                    hit_data.is_hit = True
+                    hit_data.is_backfacing = det < 0
+                    hit_data.triangle_id = triangle_id
+                    hit_data.distance = t
+                    hit_data.barycentric_coords = tm.vec2(u, v)
+                    # the per-pixel interpolated normal, returned as a taichi.math vec3 type
+                    # (hint: you will need to flip your normal if your triangle is backfacing,
+                    # as well as performing the per-vertex to per-pixel interpolation and renormalization)
+                    if hit_data.is_backfacing:
+                        hit_data.normal = w * normal_0 + u * normal_1 + v * normal_2
+                    else:
+                        hit_data.normal = w * normal_0 + v * normal_1 + u * normal_2
+                    hit_data.material_id = material_id
         return hit_data
 
 
