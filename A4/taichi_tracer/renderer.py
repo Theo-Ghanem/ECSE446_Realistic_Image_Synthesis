@@ -551,7 +551,8 @@ class A4Renderer:
         self.scene_data = scene_data
         
         self.max_bounces = ti.field(dtype=int, shape=())
-        self.max_bounces[None] = 5
+        # self.max_bounces[None] = 5
+        self.max_bounces[None] = 1 # changed for testing
 
         self.rr_termination_probabilty = ti.field(dtype=float, shape=())
         self.rr_termination_probabilty[None] = 0.0
@@ -592,21 +593,97 @@ class A4Renderer:
 
         return color
 
+    # TODO A4: Implement Implicit Path Tracing
+    # xTODO A4: Implement Specular Caustics Support - ECSE 546 Deliverable
     @ti.func
     def shade_implicit(self, ray: Ray) -> tm.vec3:
+        throughput = tm.vec3(1.0, 1.0, 1.0)
         color = tm.vec3(0.)
 
-        # TODO A4: Implement Implicit Path Tracing
-        # TODO A4: Implement Specular Caustics Support - ECSE 546 Deliverable
+        for _ in range(self.max_bounces[None] + 1):
+            hit_data = self.scene_data.ray_intersector.query_ray(ray)
+            if not hit_data.is_hit:
+                break  # Ray escaped the scene
+
+            x = ray.origin + ray.direction * hit_data.distance
+            normal = hit_data.normal
+            material = self.scene_data.material_library.materials[hit_data.material_id]
+            omega_o = -ray.direction
+
+            if material.Ke.norm() > 0: # Hit an emissive material
+                color = material.Ke * throughput
+                break
+            else:
+                # Sample a new direction using BRDF importance sampling
+                omega_i = BRDF.sample_direction(material, omega_o, normal)
+                # pdf = BRDF.evaluate_probability(material, omega_o, omega_i, normal)
+                # pdf = UniformSampler.evaluate_probability()
+                pdf = self.scene_data.mesh_light_sampler.evaluate_probability()
+                # brdf = BRDF.evaluate_brdf_factor(material, omega_o, omega_i, normal, pdf)
+                brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_i, normal) * max(0.0,tm.dot(normal, omega_i)) / pdf
+                # brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_i, normal)
+
+                throughput *= brdf_factor
+
+                # Update the ray for the next bounce
+                ray.origin = x + self.RAY_OFFSET * normal
+                ray.direction = omega_i
 
         return color
-    
+
     @ti.func
     def shade_explicit(self, ray: Ray) -> tm.vec3:
-        color = tm.vec3(0.)
+        throughput = tm.vec3(1.0, 1.0, 1.0)
+        color = tm.vec3(0.0, 0.0, 0.0)
+        epsilon = 1e-6
 
-        # TODO A4: Implement Explicit Path Tracing
-        # TODO A4: Implement Russian Roulette Support
-            
+        for _ in range(self.max_bounces[None]):
+            hit_data = self.scene_data.ray_intersector.query_ray(ray)
+            if not hit_data.is_hit:
+                break  # Ray escaped the scene
+
+            x = ray.origin + ray.direction * hit_data.distance
+            normal = hit_data.normal
+            material = self.scene_data.material_library.materials[hit_data.material_id]
+            omega_o = -ray.direction
+
+            if material.Ke.norm() > 0:  # Hit an emissive material
+                color += material.Ke * throughput
+                break
+
+            # Direct lighting
+            light_direction, sampled_light_triangle = self.scene_data.mesh_light_sampler.sample_mesh_lights(x)
+            light_pdf = self.scene_data.mesh_light_sampler.evaluate_probability()
+            brdf = BRDF.evaluate_brdf(material, omega_o, light_direction, normal)
+            brdf_factor = brdf * max(0.0, tm.dot(normal, light_direction)) / (light_pdf + epsilon)
+
+            shading_point = tm.vec3(x + self.RAY_OFFSET * normal)
+            shadow_ray = Ray()
+            shadow_ray.origin = shading_point
+            shadow_ray.direction = light_direction
+            shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
+            if shadow_hit.is_hit and shadow_hit.triangle_id == sampled_light_triangle:
+                light_material = self.scene_data.material_library.materials[shadow_hit.material_id]
+                if light_material.Ke.norm() > 0:
+                    distance = shadow_hit.distance
+                    jacobian = max(0.0, tm.dot(shadow_hit.normal, -light_direction)) / (distance * distance + epsilon)
+                    color += light_material.Ke * brdf_factor * jacobian * throughput
+
+            # Russian Roulette termination
+            if ti.random() < self.rr_termination_probabilty[None]:
+                break
+
+            # Indirect lighting
+            omega_i = BRDF.sample_direction(material, omega_o, normal)
+            pdf = BRDF.evaluate_probability(material, omega_o, omega_i, normal) + epsilon
+            brdf = BRDF.evaluate_brdf(material, omega_o, omega_i, normal)
+            brdf_factor = brdf * max(0.0, tm.dot(normal, omega_i)) / pdf
+
+            throughput *= brdf_factor / (1.0 - self.rr_termination_probabilty[None])
+
+            # Update the ray for the next bounce
+            ray.origin = x + self.RAY_OFFSET * normal
+            ray.direction = omega_i
+
         return color
 
