@@ -635,6 +635,7 @@ class A4Renderer:
         for bounce in range(self.max_bounces[None]):
             hit_data = self.scene_data.ray_intersector.query_ray(ray)
             if not hit_data.is_hit:
+                color = tm.vec3(0.)
                 break  # Ray escaped the scene
 
             x = ray.origin + ray.direction * hit_data.distance
@@ -671,11 +672,12 @@ class A4Renderer:
 
             # Indirect lighting
             omega_i = BRDF.sample_direction(material, omega_o, normal)
-            # pdf = BRDF.evaluate_probability(material, omega_o, omega_i, normal) + epsilon
             brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_i, normal)
-            # brdf_factor = brdf * max(0.0, tm.dot(normal, omega_i)) / pdf
+            # pdf_brdf = BRDF.evaluate_probability(material, omega_o, omega_i, normal) #NO
+            # pdf_uniform = UniformSampler.evaluate_probability() #NO
+            pdf_light = light_pdf
 
-            throughput *= brdf_factor / (1.0 - self.rr_termination_probabilty[None])
+            throughput *= brdf_factor/pdf_light
 
             # Update the ray for the next bounce
             ray.origin = x + self.RAY_OFFSET * normal
