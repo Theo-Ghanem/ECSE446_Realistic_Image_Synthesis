@@ -642,8 +642,8 @@ class A4Renderer:
             material = self.scene_data.material_library.materials[hit_data.material_id]
             omega_o = -ray.direction
 
-            if material.Ke.norm() > 0:  # Hit an emissive material
-                if not hit_data.is_backfacing:
+            if material.Ke.norm() > 0 :  # Hit an emissive material
+                if not hit_data.is_backfacing and bounce == 0:
                     color = material.Ke * throughput
                 break
 
@@ -658,25 +658,25 @@ class A4Renderer:
             shadow_ray.direction = light_direction
             shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
             shadow_normal = shadow_hit.normal
+            shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
             if shadow_hit.is_hit and shadow_hit.triangle_id == sampled_light_triangle:
-                light_material = self.scene_data.material_library.materials[shadow_hit.material_id]
-                if light_material.Ke.norm() > 0:
+                if shadow_material.Ke.norm() > 0:
                     distance = shadow_hit.distance
                     jacobian = max(0.0, tm.dot(shadow_hit.normal, -light_direction)) * max(0.0, tm.dot(normal, light_direction)) / (light_pdf * distance * distance)
-                    color += light_material.Ke * brdf * jacobian * throughput
+                    color += shadow_material.Ke * brdf * jacobian * throughput
 
             # Russian Roulette termination
             if ti.random() < self.rr_termination_probabilty[None]:
                 break
 
             # Indirect lighting
-            omega_i = BRDF.sample_direction(material, omega_o, shadow_normal)
-            brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_i, shadow_normal)
+            omega_i = BRDF.sample_direction(material, omega_o, normal)
+            brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_i, normal)
 
             throughput *= brdf_factor
 
             # Update the ray for the next bounce
-            ray.origin = shading_point + self.RAY_OFFSET * shadow_normal
+            ray.origin = x + self.RAY_OFFSET * normal
             ray.direction = omega_i
 
         return color
