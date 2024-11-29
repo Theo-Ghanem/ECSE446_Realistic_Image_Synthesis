@@ -551,8 +551,8 @@ class A4Renderer:
         self.scene_data = scene_data
         
         self.max_bounces = ti.field(dtype=int, shape=())
-        # self.max_bounces[None] = 5
-        self.max_bounces[None] = 1 # changed for testing
+        self.max_bounces[None] = 5
+        # self.max_bounces[None] = 1 # changed for testing
 
         self.rr_termination_probabilty = ti.field(dtype=float, shape=())
         self.rr_termination_probabilty[None] = 0.0
@@ -657,7 +657,6 @@ class A4Renderer:
             shadow_ray.origin = shading_point
             shadow_ray.direction = light_direction
             shadow_hit = self.scene_data.ray_intersector.query_ray(shadow_ray)
-            shadow_normal = shadow_hit.normal
             shadow_material = self.scene_data.material_library.materials[shadow_hit.material_id]
             if shadow_hit.is_hit and shadow_hit.triangle_id == sampled_light_triangle:
                 if shadow_material.Ke.norm() > 0:
@@ -673,7 +672,7 @@ class A4Renderer:
             omega_i = BRDF.sample_direction(material, omega_o, normal)
             brdf_factor = BRDF.evaluate_brdf(material, omega_o, omega_i, normal)
 
-            throughput *= brdf_factor
+            throughput *= brdf_factor / (1.0 - self.rr_termination_probabilty[None])
 
             # Update the ray for the next bounce
             ray.origin = x + self.RAY_OFFSET * normal

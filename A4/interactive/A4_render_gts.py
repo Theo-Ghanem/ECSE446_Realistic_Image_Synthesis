@@ -34,27 +34,26 @@ def main():
     renderer.set_shading_implicit()
 
     spps = [1, 10, 100]
-    spps = [100]
     bounces = [1, 2, 3, 4]
 
-    # for spp in spps:
-    #     for bounce in bounces:
-    #         renderer.reset()
-    #         renderer.max_bounces[None] = bounce
-    #         for _ in tqdm(range(spp),
-    #                       desc="Rendering Implicit Path Tracing Image @ {N} bounces x {s} SPP".format(N=bounce, s=spp)):
-    #             renderer.render()
-    #         renderer.postprocess()
-    #
-    #         img = renderer.canvas_postprocessed.to_numpy()
-    #         img = np.rot90(np.clip(img, 0, 1))
-    #
-    #         title = "{N}_bounce_Implicit_path_tracing_{s}spp.png".format(N=bounce, s=spp)
-    #         title = prefix_outputpath + title
-    #         plt.imshow(img)
-    #         plt.axis('off')
-    #         plt.savefig(title, bbox_inches='tight', pad_inches=0)
-    #         plt.clf()
+    for spp in spps:
+        for bounce in bounces:
+            renderer.reset()
+            renderer.max_bounces[None] = bounce
+            for _ in tqdm(range(spp),
+                          desc="Rendering Implicit Path Tracing Image @ {N} bounces x {s} SPP".format(N=bounce, s=spp)):
+                renderer.render()
+            renderer.postprocess()
+
+            img = renderer.canvas_postprocessed.to_numpy()
+            img = np.rot90(np.clip(img, 0, 1))
+
+            title = "{N}_bounce_Implicit_path_tracing_{s}spp.png".format(N=bounce, s=spp)
+            title = prefix_outputpath + title
+            plt.imshow(img)
+            plt.axis('off')
+            plt.savefig(title, bbox_inches='tight', pad_inches=0)
+            plt.clf()
 
     renderer.set_shading_explicit()
 
@@ -81,32 +80,32 @@ def main():
 
     renderer.set_shading_explicit()
 
-    # spp = 100
-    # rr_probabilities = [0.2, 0.4, 0.6, 0.8]
-    # for rr_prob in rr_probabilities:
-    #     for bounce in bounces:
-    #         renderer.reset()
-    #         renderer.max_bounces[None] = bounce
-    #         renderer.rr_termination_probabilty[None] = rr_prob
-    #
-    #         for _ in tqdm(range(spp),
-    #                       desc="Rendering Explicit Path Tracing Image @ {N} bounces x {s} SPP with Russian Roulette probability {rr}".format(
-    #                               N=bounce, s=spp, rr=rr_prob)):
-    #             renderer.render()
-    #         renderer.postprocess()
-    #
-    #         img = renderer.canvas_postprocessed.to_numpy()
-    #         img = np.rot90(np.clip(img, 0, 1))
-    #
-    #         title = "{N}_bounce_Explicit_path_tracing_{s}spp_rr_prob_{rr}.png".format(N=bounce, s=spp,
-    #                                                                                   rr=int(rr_prob * 100))
-    #         title = prefix_outputpath + title
-    #
-    #         plt.imshow(img)
-    #         plt.axis('off')
-    #         plt.savefig(title, bbox_inches='tight', pad_inches=0)
-    #         plt.clf()
-    #
+    spp = 100
+    rr_probabilities = [0.2, 0.4, 0.6, 0.8]
+    for rr_prob in rr_probabilities:
+        for bounce in bounces:
+            renderer.reset()
+            renderer.max_bounces[None] = bounce
+            renderer.rr_termination_probabilty[None] = rr_prob
+
+            for _ in tqdm(range(spp),
+                          desc="Rendering Explicit Path Tracing Image @ {N} bounces x {s} SPP with Russian Roulette probability {rr}".format(
+                                  N=bounce, s=spp, rr=rr_prob)):
+                renderer.render()
+            renderer.postprocess()
+
+            img = renderer.canvas_postprocessed.to_numpy()
+            img = np.rot90(np.clip(img, 0, 1))
+
+            title = "{N}_bounce_Explicit_path_tracing_{s}spp_rr_prob_{rr}.png".format(N=bounce, s=spp,
+                                                                                      rr=int(rr_prob * 100))
+            title = prefix_outputpath + title
+
+            plt.imshow(img)
+            plt.axis('off')
+            plt.savefig(title, bbox_inches='tight', pad_inches=0)
+            plt.clf()
+
     #
     # scene_data = load_scene_data(SceneName.CORNELL_BOX_CAUSTIC_SPHERE, EnvironmentName.BLACK)
     # renderer = A4Renderer(scene_data=scene_data, width=1024, height=1024)
